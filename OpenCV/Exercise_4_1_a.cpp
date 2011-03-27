@@ -66,7 +66,7 @@ int main( int argc, char* argv[] )
 		cvShowImage( "Exercise_4_1_a_input", frame );
 		cvCvtColor( frame, frameGray, CV_RGB2GRAY );
 		cvShowImage( "Exercise_4_1_a_gray", frameGray );
-		frameCanny = doCanny( frame, 10, 100, 3 );
+		frameCanny = doCanny( frame, 10, 150, 3 );
 		cvShowImage( "Exercise_4_1_a_canny", frameCanny );
 		char c = cvWaitKey(33);
 		if( c == 27 ) break;
