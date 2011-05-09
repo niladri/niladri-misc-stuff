@@ -120,7 +120,7 @@ void Draw ( ESContext *esContext )
                             0.67f,  0.00f,        // TexCoord 2
                             0.8f,  0.8f, 0.0f,  // Position 3
                             1.00f,  0.00f,        // TexCoord 3
-                            -0.8f,  0.7f, 0.0f,  // Position 4
+                           -0.8f,  0.7f, 0.0f,  // Position 4
                             0.00f,  0.33f,        // TexCoord 4
                            -0.7f,  0.7f, 0.0f,  // Position 5
                             0.33f,  0.33f,        // TexCoord 5
@@ -128,9 +128,9 @@ void Draw ( ESContext *esContext )
                             0.67f,  0.33f,        // TexCoord 6
                             0.8f,  0.7f, 0.0f,  // Position 7
                             1.00f,  0.33f,        // TexCoord 7
-                            -0.8f, -0.7f, 0.0f,  // Position 8
+                           -0.8f, -0.7f, 0.0f,  // Position 8
                             0.00f,  0.67f,        // TexCoord 8
-                            -0.7f, -0.7f, 0.0f,  // Position 9
+                           -0.7f, -0.7f, 0.0f,  // Position 9
                             0.33f,  0.67f,        // TexCoord 9
                             0.7f, -0.7f, 0.0f,  // Position 10
                             0.67f,  0.67f,        // TexCoord 10
