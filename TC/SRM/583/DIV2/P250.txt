@@ -1,7 +1,8 @@
 Problem Statement
     
 Given is a string num. This string contains the digits of a (possibly large) positive integer. For example, num="1147" represents the integer 1147. The string num will not have any leading zeros.
-You are allowed to swap one pair of digits in the given number. In other words, you may choose a pair of distinct indices i and j, and swap the characters num[i] and num[j]. Note that you may also leave the original number unchanged. The new string must again describe a valid positive integer, i.e., it must not have any leading zeros.
+You are allowed to swap one pair of digits in the given number. In other words, you may choose a pair of distinct indices i and j, and swap the characters num[i] and num[j]. 
+Note that you may also leave the original number unchanged. The new string must again describe a valid positive integer, i.e., it must not have any leading zeros.
 Find and return the string that represents the smallest possible integer that can be obtained.
 Definition
     
