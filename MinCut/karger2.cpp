@@ -9,7 +9,6 @@
 using namespace std;
 
 typedef list<pair<int, int>> EdgeListType;
-EdgeListType edgeList;
 
 int GetRandom(int max)
 {
@@ -18,7 +17,7 @@ int GetRandom(int max)
 	return r;
 }
 
-int GetMinCutSize(int vertexCount)
+int GetMinCutSize(int vertexCount, EdgeListType& edgeList)
 {
 	EdgeListType edgeListCopy(edgeList);
 
@@ -26,24 +25,22 @@ int GetMinCutSize(int vertexCount)
 	{
 		int rV = GetRandom(edgeListCopy.size());
 		EdgeListType::iterator it = edgeListCopy.begin();
-		for(int i=0; i<rV; i++) ++it;
+		for(int j=0; j<rV; j++) ++it;
 		pair<int, int> edge = *it;
 		int vID1 = edge.first;
 		int vID2 = edge.second;
 
-		// Change all vID1 to vID2 in edgeList
-		for(it = edgeListCopy.begin(); it != edgeListCopy.end(); ++it)
+		// Changes all vID1 to vID2 in edgeList
+		for(it = edgeListCopy.begin(); it != edgeListCopy.end(); )
 		{
 			pair<int, int> edge = *it;
 			if(edge.first == vID1) it->first = vID2;
 			if(edge.second == vID1) it->second = vID2;
 			// Remove self loops of vID2
 			if(it->first == it->second)
-			{
 				it = edgeListCopy.erase(it);
-				if(it != edgeListCopy.begin())
-					--it;
-			}
+			else
+				++it;
 		}
 	}
 
@@ -52,6 +49,7 @@ int GetMinCutSize(int vertexCount)
 
 void karger(string filename)
 {
+	EdgeListType edgeList;
 	ifstream inFile;
 	inFile.open(filename, ifstream::in);
 	int vertexCount = 0;
@@ -86,7 +84,7 @@ void karger(string filename)
 	unsigned int minCutSize = 0xFFFFFFFF;
 	for(int i=0; i<vertexCount*vertexCount; i++)
 	{
-		unsigned int cutSize = GetMinCutSize(vertexCount);
+		unsigned int cutSize = GetMinCutSize(vertexCount, edgeList);
 		if(cutSize < minCutSize)
 			minCutSize = cutSize;
 	}
