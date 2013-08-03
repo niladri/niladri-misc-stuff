@@ -13,6 +13,10 @@
 #include <windows.h>
 using namespace std;
 
+// Need to increase stack size for large size input
+// For approx 1 million vertices, 5 million edges - 8 MB of stack was not sufficient
+// Next run with 160 MB of stack was successful
+
 static const int START_VERTEX = 1;
 static const int VERTEX_COUNT = 875714 + START_VERTEX;
 int currentLeader = -1;
