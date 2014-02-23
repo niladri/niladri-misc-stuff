@@ -1,0 +1,174 @@
+// Histogram Equalization
+
+#include    <wb.h>
+
+#define HISTOGRAM_LENGTH 256
+#define BLOCK_SIZE 256
+#define GRID_SIZE 16
+
+//@@ insert code here
+
+__device__ unsigned int clamp(unsigned int x, unsigned int start, unsigned int end)
+{
+	return min(max(x, start), end);
+}
+
+__device__ unsigned int correct(unsigned int value, float cdfmin, float * cdf)
+{
+	return clamp(255*(cdf[value] - cdfmin)/(1 - cdfmin), 0, 255);
+}
+
+__global__ void convertToGrayScale(float * in, unsigned char * out, int len) {
+	//@@ Insert code to implement conversion from RGB to GrayScale
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if(i < len) 
+	{
+		unsigned char r = (unsigned char)(255.0 * in[3*i]);
+		unsigned char g = (unsigned char)(255.0 * in[3*i + 1]);
+		unsigned char b = (unsigned char)(255.0 * in[3*i + 2]);
+		out[i] = (unsigned char)(0.21*r + 0.71*g + 0.07*b);
+	}
+}
+
+__global__ void histogram(unsigned char * buffer, unsigned int * histo, long size) {
+	//@@ Insert code for histogram
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	
+	// stride is total number of threads
+	int stride = blockDim.x * gridDim.x;
+
+	// All threads handle blockDim.x * gridDim.x
+	// consecutive elements
+	while (i < size) {
+		atomicAdd( &(histo[buffer[i]]), 1);
+		i += stride;
+	}
+}
+
+__global__ void scanCDF(unsigned int * input, float * output, int denominator) {
+	
+	__shared__ float XY[HISTOGRAM_LENGTH];
+	
+	// Checks removed for optimization
+	
+	int i = threadIdx.x;
+	XY[threadIdx.x] = (float)input[i]/denominator;
+	
+	for(int stride=1; stride <= threadIdx.x; stride *= 2)
+	{
+		__syncthreads();
+		float in1 = XY[threadIdx.x - stride];
+		__syncthreads();
+		XY[threadIdx.x] += in1;
+	}
+	__syncthreads();
+	
+	output[i] = XY[threadIdx.x];
+}
+
+__global__ void equalize(float * input, float * output, float * deviceCDF, int rgbCount) {
+	//@@ Code for equalize
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	float minCDF = deviceCDF[0]; // Can be optimized
+	if(i < rgbCount)
+	{
+		unsigned char c = (unsigned char)(255.0 * input[i]);
+		output[i] = (float) (correct(c, minCDF, deviceCDF)/255.0);
+	}
+}
+
+int main(int argc, char ** argv) {
+    wbArg_t args;
+    int imageWidth;
+    int imageHeight;
+    int imageChannels;
+    wbImage_t inputImage;
+    wbImage_t outputImage;
+    float * hostInputImageData;
+    float * hostOutputImageData;
+    const char * inputImageFile;
+
+    //@@ Insert more code here
+	float * deviceInputImageData;
+	float * deviceOutputImageData;
+	unsigned char * deviceGrayScale;
+	
+	unsigned int * deviceHistogram;
+	float * deviceCDF;
+		
+    args = wbArg_read(argc, argv); /* parse the input arguments */
+
+    inputImageFile = wbArg_getInputFile(args, 0);
+
+    wbTime_start(Generic, "Importing data and creating memory on host");
+    inputImage = wbImport(inputImageFile);
+    imageWidth = wbImage_getWidth(inputImage);
+    imageHeight = wbImage_getHeight(inputImage);
+    imageChannels = wbImage_getChannels(inputImage);
+    outputImage = wbImage_new(imageWidth, imageHeight, imageChannels);
+	
+	//wbLog(TRACE, "Width = ", imageWidth, ", Height = ", imageHeight, ", Channels = ", imageChannels);
+	hostInputImageData = wbImage_getData(inputImage);
+    hostOutputImageData = wbImage_getData(outputImage);
+    wbTime_stop(Generic, "Importing data and creating memory on host");
+
+    //@@ insert code here
+	int rgbSize = imageWidth * imageHeight * imageChannels * sizeof(float);
+	int graySize = imageWidth * imageHeight;
+	int rgbCount = imageWidth * imageHeight * imageChannels;
+	int grayCount = imageWidth * imageHeight;
+	int histogramSize = HISTOGRAM_LENGTH * sizeof(unsigned int);
+	int cdfSize = HISTOGRAM_LENGTH * sizeof(float);
+
+	cudaMalloc((void**)&deviceInputImageData, rgbSize);
+	cudaMalloc((void**)&deviceOutputImageData, rgbSize);
+	cudaMalloc((void**)&deviceGrayScale, graySize);
+	cudaMalloc((void**)&deviceHistogram, histogramSize);
+	cudaMalloc((void**)&deviceCDF, cdfSize);
+	
+	cudaMemcpy(deviceInputImageData, hostInputImageData, rgbSize, cudaMemcpyHostToDevice);
+	
+	wbTime_start(Compute, "Performing CUDA computation");
+	
+	//@@ Launch kernel to convert RGB to GrayScale
+	{
+		dim3 dimBlock(BLOCK_SIZE, 1, 1);
+		dim3 dimGrid((grayCount - 1)/BLOCK_SIZE + 1, 1, 1);
+		convertToGrayScale<<<dimGrid, BLOCK_SIZE>>>(deviceInputImageData, deviceGrayScale, grayCount);
+		cudaThreadSynchronize();
+	}
+	
+	//@@ Launch kernel to calculate histogram
+	histogram<<<GRID_SIZE, BLOCK_SIZE>>>(deviceGrayScale, deviceHistogram, grayCount);
+	cudaThreadSynchronize();
+	
+	//@@ Calculate CDF
+	scanCDF<<<1, HISTOGRAM_LENGTH>>>(deviceHistogram, deviceCDF, imageWidth * imageHeight);
+	
+	//@@ Launch kernel to equalize based on histogram
+	{
+		dim3 dimBlock(BLOCK_SIZE, 1, 1);
+		dim3 dimGrid((rgbCount - 1)/BLOCK_SIZE + 1, 1, 1);
+		equalize<<<dimGrid, dimBlock>>>(deviceInputImageData, deviceOutputImageData, deviceCDF, rgbCount);
+		cudaThreadSynchronize();
+	}
+	
+	wbTime_stop(Compute, "Performing CUDA computation");
+	
+	cudaMemcpy(hostOutputImageData, deviceOutputImageData, rgbSize, cudaMemcpyDeviceToHost);
+
+    wbSolution(args, outputImage);
+
+    //@@ insert code here
+	cudaFree(deviceCDF);
+	cudaFree(deviceHistogram);
+	cudaFree(deviceGrayScale);
+	cudaFree(deviceOutputImageData);
+	cudaFree(deviceInputImageData);
+	
+	wbImage_delete(outputImage);
+    wbImage_delete(inputImage);
+
+    return 0;
+}
+
